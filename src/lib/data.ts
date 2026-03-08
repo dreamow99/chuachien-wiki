@@ -1,6 +1,7 @@
 import type { Temple } from '../types/temple';
+import { base } from 'astro:config/client';
 
-const DATA_URL = 'chuachien-wiki/data/temples.json';
+const DATA_URL = `${base}/data/temples.json`;
 
 let cached: Temple[] | null = null;
 
