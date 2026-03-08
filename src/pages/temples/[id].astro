@@ -78,33 +78,79 @@ const { temple } = Astro.props;
 </Layout>
 
 <style>
+  nav[aria-label='Breadcrumb'] {
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-4);
+    color: var(--color-text-muted);
+  }
+  nav a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  nav a:hover {
+    text-decoration: underline;
+  }
+  article header {
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+  article h1 {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    margin: 0 0 var(--space-2) 0;
+    letter-spacing: -0.02em;
+  }
   .address {
-    color: var(--muted, #666);
-    margin: 0.25rem 0;
+    color: var(--color-text-muted);
+    margin: var(--space-1) 0;
+    font-size: var(--text-sm);
   }
   .type {
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     text-transform: capitalize;
     margin: 0;
+    color: var(--color-text-muted);
+  }
+  article section {
+    margin-bottom: var(--space-5);
+  }
+  article section h2 {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin: 0 0 var(--space-2) 0;
   }
   .muted {
-    color: var(--muted, #666);
+    color: var(--color-text-muted);
     font-style: italic;
   }
   .back-link {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
   }
   .back-link a {
-    color: var(--link, #2563eb);
+    color: var(--color-primary);
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .back-link a:hover {
+    text-decoration: underline;
+  }
+  .back-link a:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
   .images {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
   .images img {
     max-width: 200px;
     height: auto;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 </style>

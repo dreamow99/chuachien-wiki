@@ -1,6 +1,6 @@
 import type { Temple } from '../types/temple';
 
-const DATA_URL = '/data/temples.json';
+const DATA_URL = 'chuachien-wiki/data/temples.json';
 
 let cached: Temple[] | null = null;
 
