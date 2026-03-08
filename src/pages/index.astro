@@ -64,6 +64,7 @@ import Layout from '../layouts/Layout.astro';
   import { searchTemples } from '../lib/search';
   import type { Temple } from '../types/temple';
   import type { TypeFilter } from '../lib/search';
+  import { base } from 'astro:config/client';
 
   const form = document.getElementById('search-form') as HTMLFormElement;
   const searchInput = document.getElementById('search-input') as HTMLInputElement;
@@ -113,7 +114,7 @@ import Layout from '../layouts/Layout.astro';
       const marker = L.marker([t.latitude, t.longitude])
         .addTo(mapInstance!)
         .on('click', () => {
-          window.location.href = `/temples/${t.id}`;
+          window.location.href = `${base}/temples/${t.id}`;
         });
       marker.bindTooltip(t.name, { permanent: false });
       mapMarkers.push(marker);
@@ -135,7 +136,7 @@ import Layout from '../layouts/Layout.astro';
 
     for (const t of temples) {
       const a = document.createElement('a');
-      a.href = `/temples/${t.id}`;
+      a.href = `${base}/temples/${t.id}`;
       a.className = 'result-item';
       a.setAttribute('data-id', t.id);
       a.setAttribute('tabindex', '0');

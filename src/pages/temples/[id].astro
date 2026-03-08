@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Layout from '../../layouts/Layout.astro';
 import type { Temple } from '../../types/temple';
-
+import { base } from 'astro:config/client';
+ 
 export function getStaticPaths() {
   const dataPath = path.join(process.cwd(), 'public', 'data', 'temples.json');
   const data = JSON.parse(fs.readFileSync(dataPath, 'utf-8')) as Temple[];
@@ -72,7 +73,7 @@ const { temple } = Astro.props;
     )}
 
     <p class="back-link">
-      <a href="/">← Quay lại tìm kiếm</a>
+      <a href=`${base}/`>← Quay lại tìm kiếm</a>
     </p>
   </article>
 </Layout>
