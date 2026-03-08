@@ -1,0 +1,412 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Tìm chùa & đền gần bạn">
+  <header>
+    <h1>Tìm chùa & đền</h1>
+    <p>Tra cứu thông tin chùa, đền, pagoda gần bạn</p>
+  </header>
+
+  <section aria-label="Tìm kiếm">
+    <form id="search-form" role="search">
+      <label for="search-input">Tìm theo tên, địa điểm hoặc từ khóa</label>
+      <input
+        id="search-input"
+        type="search"
+        name="q"
+        placeholder="Nhập tên chùa, địa chỉ, quận..."
+        autocomplete="off"
+      />
+      <fieldset>
+        <legend>Loại</legend>
+        <label>
+          <input type="radio" name="type" value="all" checked /> Tất cả
+        </label>
+        <label>
+          <input type="radio" name="type" value="temple" /> Chùa
+        </label>
+        <label>
+          <input type="radio" name="type" value="pagoda" /> Đền
+        </label>
+      </fieldset>
+      <button type="submit">Tìm kiếm</button>
+    </form>
+  </section>
+
+  <section id="nearby-section" aria-label="Gần tôi">
+    <h2>Gần tôi</h2>
+    <button type="button" id="near-me-btn">Tìm gần vị trí của tôi</button>
+    <p id="nearby-place-label" class="secondary"></p>
+    <label for="nearby-address">Hoặc nhập địa chỉ / thành phố</label>
+    <div class="nearby-input-row">
+      <input
+        id="nearby-address"
+        type="text"
+        placeholder="Ví dụ: Ba Đình, Hà Nội"
+        autocomplete="address-level2"
+      />
+      <button type="button" id="nearby-address-btn">Tìm gần đây</button>
+    </div>
+    <p id="location-error" class="error" role="alert" hidden></p>
+  </section>
+
+  <section id="results-section" aria-label="Kết quả">
+    <h2 id="results-heading">Kết quả</h2>
+    <div id="results-list" aria-labelledby="results-heading"></div>
+    <p id="results-empty" class="empty" hidden>Không tìm thấy kết quả nào.</p>
+  </section>
+
+  <div id="map-container" class="map-container" hidden aria-label="Bản đồ"></div>
+</Layout>
+
+<script>
+  import { loadTemples } from '../lib/data';
+  import { searchTemples } from '../lib/search';
+  import type { Temple } from '../types/temple';
+  import type { TypeFilter } from '../lib/search';
+
+  const form = document.getElementById('search-form') as HTMLFormElement;
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+  const resultsList = document.getElementById('results-list')!;
+  const resultsEmpty = document.getElementById('results-empty')!;
+  const nearMeBtn = document.getElementById('near-me-btn') as HTMLButtonElement;
+  const nearbyAddressInput = document.getElementById('nearby-address') as HTMLInputElement;
+  const nearbyAddressBtn = document.getElementById('nearby-address-btn') as HTMLButtonElement;
+  const nearbyPlaceLabel = document.getElementById('nearby-place-label')!;
+  const locationError = document.getElementById('location-error')!;
+  const mapContainer = document.getElementById('map-container')!;
+
+  let allTemples: Temple[] = [];
+  let currentCoords: { lat: number; lng: number } | null = null;
+  let mapInstance: import('leaflet').Map | null = null;
+  let mapMarkers: import('leaflet').Marker[] = [];
+
+  function getTypeFilter(): TypeFilter {
+    const r = (form?.querySelector('input[name="type"]:checked') as HTMLInputElement)?.value;
+    return (r === 'temple' || r === 'pagoda' ? r : 'all') as TypeFilter;
+  }
+
+  async function updateMap(temples: Temple[]) {
+    if (temples.length === 0) {
+      mapContainer.hidden = true;
+      if (mapInstance) {
+        mapMarkers.forEach((m) => m.remove());
+        mapMarkers = [];
+        mapInstance.remove();
+        mapInstance = null;
+      }
+      return;
+    }
+    mapContainer.hidden = false;
+    const L = await import('leaflet');
+    if (!mapInstance) {
+      const center = temples[0];
+      mapInstance = L.map(mapContainer).setView([center.latitude, center.longitude], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+      }).addTo(mapInstance);
+    }
+    mapMarkers.forEach((m) => m.remove());
+    mapMarkers = [];
+    const bounds: [number, number][] = [];
+    for (const t of temples) {
+      const marker = L.marker([t.latitude, t.longitude])
+        .addTo(mapInstance!)
+        .on('click', () => {
+          window.location.href = `/temples/${t.id}`;
+        });
+      marker.bindTooltip(t.name, { permanent: false });
+      mapMarkers.push(marker);
+      bounds.push([t.latitude, t.longitude]);
+    }
+    if (bounds.length > 1) {
+      mapInstance!.fitBounds(L.latLngBounds(bounds), { padding: [20, 20] });
+    }
+  }
+
+  function renderList(temples: Temple[], showDistance = false) {
+    resultsList.innerHTML = '';
+    resultsEmpty.hidden = temples.length > 0;
+
+    if (temples.length === 0) {
+      updateMap([]);
+      return;
+    }
+
+    for (const t of temples) {
+      const a = document.createElement('a');
+      a.href = `/temples/${t.id}`;
+      a.className = 'result-item';
+      a.setAttribute('data-id', t.id);
+      a.setAttribute('tabindex', '0');
+      const name = document.createElement('strong');
+      name.textContent = t.name;
+      const addr = document.createElement('span');
+      addr.className = 'address';
+      addr.textContent = t.address;
+      a.append(name, ' — ', addr);
+      if (showDistance && currentCoords) {
+        const dist = distanceKm(currentCoords.lat, currentCoords.lng, t.latitude, t.longitude);
+        const distEl = document.createElement('span');
+        distEl.className = 'distance';
+        distEl.textContent = ` · ${dist.toFixed(1)} km`;
+        a.append(distEl);
+      }
+      resultsList.appendChild(a);
+    }
+    updateMap(temples);
+  }
+
+  function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  function sortByDistance(temples: Temple[], lat: number, lng: number): Temple[] {
+    return [...temples].sort((a, b) => {
+      const da = distanceKm(lat, lng, a.latitude, a.longitude);
+      const db = distanceKm(lat, lng, b.latitude, b.longitude);
+      return da - db;
+    });
+  }
+
+  function runSearch() {
+    const q = searchInput?.value ?? '';
+    const typeFilter = getTypeFilter();
+    const list = searchTemples(allTemples, q, typeFilter);
+    currentCoords = null;
+    nearbyPlaceLabel.textContent = '';
+    renderList(list, false);
+  }
+
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    runSearch();
+  });
+
+  nearMeBtn?.addEventListener('click', async () => {
+    locationError.hidden = true;
+    locationError.textContent = '';
+    if (!navigator.geolocation) {
+      locationError.textContent = 'Trình duyệt không hỗ trợ vị trí. Bạn có thể nhập địa chỉ bên dưới.';
+      locationError.hidden = false;
+      return;
+    }
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+      });
+      const { latitude, longitude } = pos.coords;
+      currentCoords = { lat: latitude, lng: longitude };
+      nearbyPlaceLabel.textContent = 'Đang dùng vị trí của bạn.';
+      const sorted = sortByDistance(allTemples, latitude, longitude);
+      renderList(sorted, true);
+    } catch {
+      locationError.textContent =
+        'Không lấy được vị trí. Bạn có thể nhập địa chỉ hoặc thành phố bên dưới để tìm gần đó.';
+      locationError.hidden = false;
+    }
+  });
+
+  async function geocode(query: string): Promise<{ lat: number; lng: number } | null> {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { lat: string; lon: string }[];
+    if (!data?.length) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  }
+
+  nearbyAddressBtn?.addEventListener('click', async () => {
+    locationError.hidden = true;
+    locationError.textContent = '';
+    const query = nearbyAddressInput?.value?.trim();
+    if (!query) {
+      locationError.textContent = 'Vui lòng nhập địa chỉ hoặc tên thành phố.';
+      locationError.hidden = false;
+      return;
+    }
+    try {
+      const coords = await geocode(query);
+      if (!coords) {
+        locationError.textContent =
+          'Không tìm thấy tọa độ cho địa chỉ này. Thử từ khóa khác hoặc dùng "Gần tôi".';
+        locationError.hidden = false;
+        return;
+      }
+      currentCoords = coords;
+      nearbyPlaceLabel.textContent = `Gần: ${query}`;
+      const sorted = sortByDistance(allTemples, coords.lat, coords.lng);
+      renderList(sorted, true);
+    } catch {
+      locationError.textContent =
+        'Lỗi khi tìm tọa độ. Thử lại hoặc dùng "Gần tôi" nếu trình duyệt cho phép.';
+      locationError.hidden = false;
+    }
+  });
+
+  (async () => {
+    try {
+      allTemples = await loadTemples();
+      runSearch();
+    } catch (e) {
+      resultsList.innerHTML = '';
+      resultsEmpty.textContent = 'Không tải được dữ liệu. Vui lòng tải lại trang.';
+      resultsEmpty.hidden = false;
+    }
+  })();
+</script>
+
+<style>
+  :root {
+    --bg: #fafafa;
+    --text: #1a1a1a;
+    --muted: #666;
+    --link: #2563eb;
+    --border: #e5e7eb;
+    --error: #b91c1c;
+  }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 1rem;
+    line-height: 1.5;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  header {
+    margin-bottom: 1.5rem;
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 0.25rem 0;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  section {
+    margin-bottom: 1.5rem;
+  }
+  label {
+    display: block;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+  input[type='search'],
+  input[type='text'] {
+    width: 100%;
+    max-width: 320px;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-sizing: border-box;
+  }
+  fieldset {
+    margin: 0.75rem 0;
+    padding: 0.5rem 0;
+    border: none;
+  }
+  fieldset legend {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+  button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background: var(--link);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover {
+    opacity: 0.9;
+  }
+  .nearby-input-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+  .nearby-input-row input {
+    flex: 1;
+  }
+  .secondary {
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin: 0.25rem 0;
+  }
+  .error {
+    color: var(--error);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+  }
+  .empty {
+    color: var(--muted);
+  }
+  #results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .result-item {
+    display: block;
+    padding: 0.75rem;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .result-item:hover {
+    border-color: var(--link);
+  }
+  .result-item .address {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .result-item .distance {
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+  .map-container {
+    height: 300px;
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  .result-item:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+  }
+  @media (min-width: 640px) {
+    body {
+      padding: 1.5rem;
+    }
+    main {
+      max-width: 720px;
+    }
+  }
+  @media (min-width: 1024px) {
+    main {
+      max-width: 800px;
+    }
+    .map-container {
+      height: 400px;
+    }
+  }
+</style>

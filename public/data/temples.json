@@ -1,0 +1,38 @@
+[
+  {
+    "id": "chua-mot-cot",
+    "name": "Chùa Một Cột",
+    "address": "Đội Cấn, Ba Đình, Hà Nội",
+    "latitude": 21.0328,
+    "longitude": 105.8342,
+    "type": "temple",
+    "description": "One Pillar Pagoda, a historic Buddhist temple built in 1049.",
+    "openingHours": "7:00 – 18:00",
+    "contact": "",
+    "images": []
+  },
+  {
+    "id": "chua-tran-quoc",
+    "name": "Chùa Trấn Quốc",
+    "address": "Thanh Niên, Tây Hồ, Hà Nội",
+    "latitude": 21.0478,
+    "longitude": 105.8353,
+    "type": "temple",
+    "description": "Oldest temple in Hanoi, on West Lake.",
+    "openingHours": "8:00 – 16:00",
+    "contact": "",
+    "images": []
+  },
+  {
+    "id": "den-ngoc-son",
+    "name": "Đền Ngọc Sơn",
+    "address": "Hoàn Kiếm, Hà Nội",
+    "latitude": 21.0285,
+    "longitude": 105.8542,
+    "type": "pagoda",
+    "description": "Temple on Jade Island in Hoàn Kiếm Lake.",
+    "openingHours": "7:30 – 18:00",
+    "contact": "",
+    "images": []
+  }
+]

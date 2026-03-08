@@ -1,0 +1,110 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import Layout from '../../layouts/Layout.astro';
+import type { Temple } from '../../types/temple';
+
+export function getStaticPaths() {
+  const dataPath = path.join(process.cwd(), 'public', 'data', 'temples.json');
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf-8')) as Temple[];
+  return data.map((t) => ({ params: { id: t.id }, props: { temple: t } }));
+}
+
+interface Props {
+  temple: Temple;
+}
+const { temple } = Astro.props;
+---
+<Layout title={temple.name}>
+  <nav aria-label="Breadcrumb">
+    <a href="/">Tìm chùa & đền</a>
+    <span aria-hidden="true"> / </span>
+    <span>{temple.name}</span>
+  </nav>
+
+  <article>
+    <header>
+      <h1>{temple.name}</h1>
+      <p class="address">{temple.address}</p>
+      <p class="type">{temple.type === 'temple' ? 'Chùa' : 'Đền'}</p>
+    </header>
+
+    {temple.description && (
+      <section aria-label="Mô tả">
+        <h2>Mô tả</h2>
+        <p>{temple.description}</p>
+      </section>
+    )}
+
+    {temple.openingHours ? (
+      <section aria-label="Giờ mở cửa">
+        <h2>Giờ mở cửa</h2>
+        <p>{temple.openingHours}</p>
+      </section>
+    ) : (
+      <section aria-label="Giờ mở cửa">
+        <h2>Giờ mở cửa</h2>
+        <p class="muted">Chưa cập nhật</p>
+      </section>
+    )}
+
+    {temple.contact ? (
+      <section aria-label="Liên hệ">
+        <h2>Liên hệ</h2>
+        <p>{temple.contact}</p>
+      </section>
+    ) : (
+      <section aria-label="Liên hệ">
+        <h2>Liên hệ</h2>
+        <p class="muted">Chưa cập nhật</p>
+      </section>
+    )}
+
+    {temple.images && temple.images.length > 0 && (
+      <section aria-label="Hình ảnh">
+        <h2>Hình ảnh</h2>
+        <div class="images">
+          {temple.images.map((src) => (
+            <img src={src} alt="" decoding="async" />
+          ))}
+        </div>
+      </section>
+    )}
+
+    <p class="back-link">
+      <a href="/">← Quay lại tìm kiếm</a>
+    </p>
+  </article>
+</Layout>
+
+<style>
+  .address {
+    color: var(--muted, #666);
+    margin: 0.25rem 0;
+  }
+  .type {
+    font-size: 0.9rem;
+    text-transform: capitalize;
+    margin: 0;
+  }
+  .muted {
+    color: var(--muted, #666);
+    font-style: italic;
+  }
+  .back-link {
+    margin-top: 1.5rem;
+  }
+  .back-link a {
+    color: var(--link, #2563eb);
+  }
+  .images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .images img {
+    max-width: 200px;
+    height: auto;
+    border-radius: 8px;
+  }
+</style>
